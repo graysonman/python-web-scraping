@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import time
@@ -35,15 +36,15 @@ def fetch_price(product_id, driver):
     url = PRODUCT_URL_TEMPLATE.format(product_id)
     driver.get(url)
 
+    # Use WebDriverWait to ensure the element loads
+    wait = WebDriverWait(driver, 10)  # adjust as needed number field
+
     #Check for captcha presence and if it exists then call the program pause
     if check_captcha(driver):
         pause_captcha(driver, url)
-
-    # Use WebDriverWait to ensure the element loads
-    wait = WebDriverWait(driver, 10)  # adjust as needed number field
-    
+        
     try:
-        main_price_text = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
+        main_price_text = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
         main_price = int(main_price_text.replace(',',''))
     except:
         print("Failed to locate main_price element.")
@@ -51,7 +52,7 @@ def fetch_price(product_id, driver):
         return None
 
     try:
-        decimal_value = int(wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
+        decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
     except:
         print("Failed to locate decimal_value element.")
         print("Page source:", driver.page_source)
@@ -79,12 +80,14 @@ def update_catalog(product_id, price, driver):
         search_box.send_keys(Keys.RETURN)
         time.sleep(2)    
         if 'ProductList' in driver.current_url and 'ProductCatalogDetail' not in driver.current_url:
-                click_product_id = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[2]/div/div[1]/div/div[2]/div[1]/div/div[2]/div[1]/table/tbody[2]/tr[1]/td[3]/div/a")))
+                click_product_id = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[2]/div/div[1]/div/div[2]/div[1]/div/div[2]/div[1]/table/tbody[2]/tr[1]/td[3]/div/a")))
                 click_product_id.click()
         time.sleep(2)
         
         wait = WebDriverWait(driver, 20)  # adjust as needed number field
 
+        # Refresh for stale page
+        driver.execute_script("document.querySelector('[class*=\"cw_ToolbarButton_Refresh\"]').click();")
         # Update the unit cost and unit price fields
         unit_cost_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[contains(@class, 'UnitCost')]")))
         #unit_cost_field = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[1]/div/div[2]/div/div[2]/div/div[1]/div[2]/div/div[2]/table/tbody/tr/td[1]/table/tbody/tr[1]/td/div/div[2]/div[1]/table/tbody/tr[1]/td/div/table[1]/tbody/tr[8]/td[3]/div/div/div/div/input")))
@@ -119,6 +122,7 @@ def main():
 
     chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
     chrome_options.add_argument("--disable-popup-blocking")
+    chrome_options.headless = True
     driver = webdriver.Chrome(options=chrome_options)
     
     try:
