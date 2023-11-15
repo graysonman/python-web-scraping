@@ -18,6 +18,12 @@ def check_captcha(driver):
     try:
         WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//h1[contains(text(), 'www.adiglobaldistribution.us')]")))
         return True
+    except UnexpectedAlertPresentException:
+        print("found alert")
+        alert = driver.switch_to.alert
+        alert_text = alert.text
+        alert.accept()
+        print(f"Handled unexpected alert with text: {alert_text}")
     except TimeoutException:
         return False  # The element was not found within the timeout period, CAPTCHA is not present
 
@@ -86,19 +92,15 @@ def update_catalog(product_id, price, driver):
         
         wait = WebDriverWait(driver, 20)  # adjust as needed number field
 
-        # Refresh for stale page
-        driver.execute_script("document.querySelector('[class*=\"cw_ToolbarButton_Refresh\"]').click();")
         # Update the unit cost and unit price fields
         unit_cost_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[contains(@class, 'UnitCost')]")))
         #unit_cost_field = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[1]/div/div[2]/div/div[2]/div/div[1]/div[2]/div/div[2]/table/tbody/tr/td[1]/table/tbody/tr[1]/td/div/div[2]/div[1]/table/tbody/tr[1]/td/div/table[1]/tbody/tr[8]/td[3]/div/div/div/div/input")))
-        unit_cost_field.click()
         time.sleep(1)
         driver.execute_script(f"arguments[0].value = '{price}';", unit_cost_field)
         time.sleep(1)
 
         unit_price_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[contains(@class, 'UnitPrice')]")))
         #unit_price_field = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[1]/div/div[2]/div/div[2]/div/div[1]/div[2]/div/div[2]/table/tbody/tr/td[1]/table/tbody/tr[1]/td/div/div[2]/div[1]/table/tbody/tr[1]/td/div/table[1]/tbody/tr[6]/td[3]/div/div/div/div/input")))
-        unit_price_field.click()
         time.sleep(1)
         rounded_price = round(price * 1.5, 2)
         print(rounded_price)
