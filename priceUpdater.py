@@ -5,6 +5,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import time
@@ -45,24 +47,33 @@ def fetch_price(product_id, driver):
     # Use WebDriverWait to ensure the element loads
     wait = WebDriverWait(driver, 10)  # adjust as needed number field
 
-    #Check for captcha presence and if it exists then call the program pause
+    # Check for captcha presence and if it exists then call the program pause
     if check_captcha(driver):
         pause_captcha(driver, url)
         
+    # If there is no page found with the product id then add it to a delete file 
+    try:
+        page_not_found = "Sorry! The page you’re looking for can’t be found."
+        if page_not_found in driver.find_element(By.TAG_NAME, "h1").text:
+            print(f"Product {product_id} does not exist.")
+            return "delete"
+    except NoSuchElementException:
+        pass
+
+    # Check for main price location and then the price location of products with multiple different colors or types
     try:
         main_price_text = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
         main_price = int(main_price_text.replace(',',''))
-    except:
-        print("Failed to locate main_price element.")
-        print("Page source:", driver.page_source)
-        return None
-
-    try:
         decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
-    except:
-        print("Failed to locate decimal_value element.")
-        print("Page source:", driver.page_source)
-        return None
+    except TimeoutException:
+        try:
+            main_price_text = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
+            main_price = int(main_price_text.replace(',',''))
+            decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
+ 
+        except:
+            print("Failed to locate price elements for {product_id}.")
+            return None
 
     full_price = main_price + (decimal_value / 100.0)
     print(full_price)
@@ -70,8 +81,9 @@ def fetch_price(product_id, driver):
 
 def update_catalog(product_id, price, driver):
     driver.get(CATALOG_URL)
-
-    product_id = "*" + product_id
+    
+    if '*' not in product_id:
+        product_id = "*" + product_id
     
     wait = WebDriverWait(driver, 30)  # adjust as needed number field
     try:
@@ -111,9 +123,10 @@ def update_catalog(product_id, price, driver):
         driver.execute_script("document.querySelector('[class*=\"cw_ToolbarButton_SaveAndClose\"]').click();")
 
         time.sleep(1)
-    except UnexpectedAlertPresentException as e:
-        print("Alert detected with message:", e.alert_text)
-        driver.switch_to.alert.accept()
+
+    except StaleElementReferenceException:
+        print("Stale element found. Retrying this product.")
+        update_catalog(product_id, price, driver)
     
 def main():
     # Load product IDs from a text file
@@ -130,12 +143,16 @@ def main():
     try:
         for product_id in product_ids:
             price = fetch_price(product_id, driver)
-            if price:
+            if price == "delete":
+                print(f"Product with ID {product_id} should be deleted!")
+                with open('tobedeleted.txt', 'a') as f:
+                    f.write(str(product_id) + '\n')
+            elif isinstance(price, float):
                 update_catalog(product_id, price, driver)
                 print(f"Updated Product ID {product_id}!")
             else:
-                print(f"Product with ID {product_id} should be deleted!")
-                with open('tobedeleted.txt', 'a') as f:
+                print(f"Found a product, {product_id} that I dont know what to do.")
+                with open('unknown.txt' , 'a') as f:
                     f.write(str(product_id) + '\n')
 
     finally:
