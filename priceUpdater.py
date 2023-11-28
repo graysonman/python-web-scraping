@@ -72,7 +72,7 @@ def fetch_price(product_id, driver):
             decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
  
         except:
-            print("Failed to locate price elements for {product_id}.")
+            print(f"Failed to locate price elements for {product_id}.")
             return None
 
     full_price = main_price + (decimal_value / 100.0)
@@ -126,7 +126,7 @@ def update_catalog(product_id, price, driver):
 
     except StaleElementReferenceException:
         print("Stale element found. Retrying this product.")
-        update_catalog(product_id, price, driver)
+        fetch_price(product_id, driver)
     
 def main():
     # Load product IDs from a text file
@@ -135,6 +135,7 @@ def main():
 
     chrome_options = Options()
 
+    # Driver control options. Headless is best practice for bots
     chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
     chrome_options.add_argument("--disable-popup-blocking")
     chrome_options.headless = True
@@ -161,4 +162,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
