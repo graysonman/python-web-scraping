@@ -1,3 +1,8 @@
+# Pricing update tool for ADI
+# Created by Grayson Hull Copyright 2023
+# If script breaks or has any issue update the xcode/css selector bits to whatever the websites latest selectors are
+
+
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -62,18 +67,24 @@ def fetch_price(product_id, driver):
 
     # Check for main price location and then the price location of products with multiple different colors or types
     try:
-        main_price_text = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
+        main_price_text = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[5]/div[3]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
         main_price = int(main_price_text.replace(',',''))
-        decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
+        decimal_value = int(wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[5]/div[3]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
     except TimeoutException:
+        #code for the price when it is on sale or has a specific other selection like color
         try:
-            main_price_text = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
-            main_price = int(main_price_text.replace(',',''))
-            decimal_value = int(wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[9]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
- 
-        except:
-            print(f"Failed to locate price elements for {product_id}.")
-            return None
+                main_price_text = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[6]/div[3]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
+                main_price = int(main_price_text.replace(',',''))
+                decimal_value = int(wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[6]/div[3]/div[1]/div/div[2]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
+        except TimeoutException:
+            #code for elements with "adi choice"
+            try:
+                main_price_text = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[6]/div[3]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/span[1]"))).text
+                main_price = int(main_price_text.replace(',',''))
+                decimal_value = int(wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[6]/div[3]/div[1]/div/div[3]/div/div/div/div/div/div[3]/div/section/div/div[3]/div[1]/div/div[2]/div[1]/isc-product-price-na-redesign/span/span[1]/span/div/sup[2]"))).text)
+            except:
+                print(f"Failed to locate price elements for {product_id}.")
+                return None
 
     full_price = main_price + (decimal_value / 100.0)
     print(full_price)
@@ -109,6 +120,7 @@ def update_catalog(product_id, price, driver):
         #unit_cost_field = wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[1]/div/div[2]/div/div[2]/div/div[1]/div[2]/div/div[2]/table/tbody/tr/td[1]/table/tbody/tr[1]/td/div/div[2]/div[1]/table/tbody/tr[1]/td/div/table[1]/tbody/tr[8]/td[3]/div/div/div/div/input")))
         time.sleep(1)
         driver.execute_script(f"arguments[0].value = '{price}';", unit_cost_field)
+        unit_cost_field.send_keys(Keys.RETURN)
         time.sleep(1)
 
         unit_price_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[contains(@class, 'UnitPrice')]")))
@@ -118,15 +130,27 @@ def update_catalog(product_id, price, driver):
         print(rounded_price)
         time.sleep(1)
         driver.execute_script(f"arguments[0].value = '{rounded_price}';", unit_price_field)
+        unit_price_field.send_keys(Keys.RETURN)
 
         # Save and close button
         driver.execute_script("document.querySelector('[class*=\"cw_ToolbarButton_SaveAndClose\"]').click();")
 
-        time.sleep(1)
+        #click_save = wait.until(EC.visibility_of_element_located((By.XPATH, "/html/body/div[2]/div[2]/div/div[2]/div/div[3]/div/div[3]/div/div[2]/div/div[1]/div/div[2]/div/div[2]/div/div[1]/div[1]/table/tbody/tr/td[1]/div/div[4]/div/div/div[3]/div/div")))
+        #click_save.click()
+        
+        time.sleep(3)
 
     except StaleElementReferenceException:
         print("Stale element found. Retrying this product.")
+        product_id = product_id[1:]
         fetch_price(product_id, driver)
+        adi_price = fetch_price(product_id, driver)
+        update_catalog(product_id, adi_price, driver)
+    except TimeoutException:
+        print("timeout error. Retrying this product.")
+        product_id = product_id[1:]
+        adi_price = fetch_price(product_id, driver)
+        update_catalog(product_id, adi_price, driver)
     
 def main():
     # Load product IDs from a text file
@@ -162,3 +186,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
